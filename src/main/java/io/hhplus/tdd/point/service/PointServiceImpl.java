@@ -56,5 +56,28 @@ public class PointServiceImpl implements PointService {
             pointServiceLock.unLock();
         }
     }
+
+    @Override
+    public UserPoint useUserPoint(long id, long amount) {
+        pointServiceLock.lock();
+        try {
+            // 유저 포인트 조회를 UserPoint 객체로 위임
+            UserPoint userPoint = UserPoint.findById(id, userPointRepository);
+
+            // 포인트 사용 로직을 UserPoint 객체로 위임
+            UserPoint updatedUserPoint = userPoint.subtractPoints(amount);
+
+            // 포인트 히스토리 저장
+            PointHistory pointHistory = PointHistory.create(id, amount, TransactionType.USE);
+            pointHistory.save(pointHistoryRepository);
+
+            // 업데이트된 포인트 저장
+            userPointRepository.saveOrUpdate(id, updatedUserPoint.point());
+
+            return updatedUserPoint;
+        } finally {
+            pointServiceLock.unLock();
+        }
+    }
 }
 

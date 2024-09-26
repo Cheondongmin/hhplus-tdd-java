@@ -36,4 +36,18 @@ public record UserPoint(
 
         return new UserPoint(this.id, newPoint, System.currentTimeMillis());
     }
+
+    // 포인트 차감 로직 (차감할 때 유효성 검증 포함)
+    public UserPoint subtractPoints(long amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("사용할 포인트는 0보다 커야 합니다.");
+        }
+
+        long newPoint = this.point - amount;
+
+        if (newPoint < 0) {
+            throw new IllegalArgumentException("잔여 포인트가 부족합니다.");
+        }
+        return new UserPoint(this.id, newPoint, System.currentTimeMillis());
+    }
 }
