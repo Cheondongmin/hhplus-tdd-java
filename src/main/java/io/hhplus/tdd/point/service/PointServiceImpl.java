@@ -2,6 +2,8 @@ package io.hhplus.tdd.point.service;
 
 import io.hhplus.tdd.point.domain.PointHistory;
 import io.hhplus.tdd.point.domain.UserPoint;
+import io.hhplus.tdd.point.enums.TransactionType;
+import io.hhplus.tdd.point.lock.PointServiceLock;
 import io.hhplus.tdd.point.repository.PointHistoryRepository;
 import io.hhplus.tdd.point.repository.UserPointRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +16,7 @@ import java.util.List;
 public class PointServiceImpl implements PointService {
     private final UserPointRepository userPointRepository;
     private final PointHistoryRepository pointHistoryRepository;
+    private final PointServiceLock pointServiceLock;
 
     // readOnly
     @Override
@@ -29,6 +32,29 @@ public class PointServiceImpl implements PointService {
 
         // 조회가 확인되었다면 해당 회원의 정보로 포인트 히스토리 정보 조회
         return PointHistory.findAllByUserId(userPoint.id(), pointHistoryRepository);
+    }
+
+    @Override
+    public UserPoint chargeUserPoint(long id, long amount) {
+        pointServiceLock.lock();
+        try {
+            // 유저 포인트 조회를 UserPoint 객체로 위임
+            UserPoint userPoint = UserPoint.findById(id, userPointRepository);
+
+            // 포인트 충전 로직을 UserPoint 객체로 위임
+            UserPoint updatedUserPoint = userPoint.addPoints(amount);
+
+            // 포인트 히스토리 저장
+            PointHistory pointHistory = PointHistory.create(id, amount, TransactionType.CHARGE);
+            pointHistory.save(pointHistoryRepository);
+
+            // 업데이트된 포인트 저장
+            userPointRepository.saveOrUpdate(id, updatedUserPoint.point());
+
+            return updatedUserPoint;
+        } finally {
+            pointServiceLock.unLock();
+        }
     }
 }
 
